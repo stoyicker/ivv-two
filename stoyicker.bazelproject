@@ -1,0 +1,5 @@
+workspace_type: android
+derive_targets_from_directories: true
+java_language_level: 7
+shard_sync: true
+android_min_sdk: 21
