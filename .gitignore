@@ -1,0 +1,12 @@
+.idea/workspace.xml
+.idea/usage.statistics.xml
+.idea/tasks.xml
+.idea/shelf
+.idea/dictionaties
+.idea/libraries/*.xml
+.idea/*.iml
+.idea/modules.xml
+.idea/vcs.xml
+bazel-out
+bazel-bin
+bazel-testlogs
