@@ -39,7 +39,7 @@ With the issue stated above, a [roadmap](https://github.com/bazelbuild/rules_and
 
   > A very common way for projects to be coupled is by using configuration injection. It may not be immediately apparent, but using key Gradle features like the allprojects and subprojects keywords automatically cause your projects to be coupled. This is because these keywords are used in a build.gradle file, which defines a project. Often this is a “root project” that does nothing more than define common configuration, but as far as Gradle is concerned this root project is still a fully-fledged project, and by using allprojects that project is effectively coupled to all other projects.
 
-  In addition, there is a major problem with Gradle's build model: from any build file, plugins included, it is possible to hook up to any of the different phases of the build process and modify it or create dependencies to and, most importantly, from it. This means that, accidentally, you could cause another module, say Foo, to depend on the one you are working on without touching Foo at all. On top of all this, and while it may be possible, I don't know of a way to automatedly determine whether a project is decoupled or not, which can become a very serious problem with as projects get bigger and bigger.
+  In addition, there is a major problem with Gradle's build model: from any build file, plugins included, it is possible to hook up to any of the different phases of the build process and modify it or create dependencies to and, most importantly, from it. This means that, accidentally, you could cause another module, say Foo, to depend on the one you are working on without touching Foo at all. On top of all this, there is no way to systematically determine whether a project is decoupled or not, which can become a very serious problem with as projects get bigger and bigger.
 
   Bazel's version of Gradle modules is called packages. A package is a combination of targets, which is an umbrella term for files, rules and package groups. Package groups are very marginal and irrelevant in this repo, and files are obvious. A rule is somewhat equivalent to a Gradle task in that it is Bazel's way to process files. Rules can take as inputs files and/or other rules (even from other packages), and output files. Rules feature a [similar three-stepped lifecycle to Gradle tasks](https://docs.bazel.build/versions/master/skylark/concepts.html#evaluation-model), but with a very key difference: Bazel's top-level container is not a target, it's something different: a workspace. This is represented by a file where the only thing that can be done is configuration injection. Unlike its Gradle equivalent, Bazel workspaces are not related to their packages, and it is impossible to misuse them as a package because they are not packages. This means that the only ways for packages to be coupled to each other is via rules or direct dependencies. This is the correct way to do it in Gradle - from [Decoupled projects](https://docs.gradle.org/current/userguide/multi_project_builds.html#sec:decoupled_projects), *decoupled projects may only interact in terms of declared dependencies: project dependencies and/or task dependencies* - but it is enforced in Bazel. Finally, Bazel implicit transitive dependencies are represented in data structures called [depsets](https://docs.bazel.build/versions/master/skylark/depsets.html) that are immutable, which makes the case where a dependency could accidentally be added to a Gradle module that we are not working on impossible in Bazel.
 
@@ -55,7 +55,7 @@ If instances of a class are provided from more than one component, there are two
 * If the components from which these instances are provided share an ancestor, directly or indirectly, and the class __cannot__ be provided from the lowest common ancestor without exposing it to additional nodes that do not need it, the class definition is moved to the package of salid lowest common ancestor but provision of instances is not altered.
 * If the components from which these instances are provided do not share an ancestor, something's gone wrong and needs fixing because in application packages we should always have a single root component that hangs from our custom Application class and in library packages similar story but from a local ContentProvider instead.
 
-While these packaging rules may not be common, they do not allow room for interpretation and enforce the file structure to closely ressemble the architecture of the software, which favours simplicity, maintainability and readability.
+While these packaging rules may not be common, they do not allow room for interpretation and enforce the file structure to closely resemble the architecture of the software, which favours simplicity, maintainability and readability.
 
 Finally, bear in mind that while the name of some classes (e.g. use cases) may remind you of Clean Architecture, which is in my opinion a very correct concept, I don't aim to respect it fully because it offers things that I do not need (such as the capability to reuse a domain layer, for example), so take anything you find along these lines as simple evidence of the influence on my practices of using Clean Architecture repeated times over the years, and not as a half-way attempt at imitating it.
 
@@ -64,28 +64,36 @@ Finally, bear in mind that while the name of some classes (e.g. use cases) may r
 ### Why no Kotlin?
 I've tried Kotlin for several years, at work and on the side. You can filter my repositories by name to see how I've used Kotlin to build apps, libraries and even annotation processors. Over time, I have learned that, in my opinion, it's just not worth. Let's look at the trade-offs in detail:
 
-* Requires extra build setup. For gradle, this means an extra Gradle plugin, plus a second one for annotation processing, which is almost a given nowadays. This is less relevant in Bazel, so no worries.
+* Requires extra build setup. For Gradle, this means an extra plugin, plus a second one for annotation processing, which is almost a given nowadays. This is less relevant in Bazel, but still.
 * Requires adding the Kotlin stdlib to the classpath.
 * Dagger2 injection of generic types requires `@JvmSuppressWildcards`, which is a bit of an annoyance when an app uses Dagger2 extensively (like this one).
 * I don't like type inference. It encourages relying on specific types by default, that is, tempts to break [Liskov's substitution principle](https://en.wikipedia.org/wiki/Liskov_substitution_principle) principle, and, although in Java you can always downcast an object no matter 
 how it is defined as, the fact that its type needs to be defined explicitly means that at least you're as close to using the lowest required abstraction (correct) as to using the lowest type (wrong).
 * No semi-colons, `object`, trailing lambdas, `infix`, `tailrec`. Just candy, I don't see features like these justifying any sort of trade-off.
 * Compiling to bytecode of old versions of Java means that the evolution of the available API is independent of whatever version of Java is supported by Android. This is real neat, but the same can easily be achieved by writing a library with a bunch of utility functions (this is essentially what Guava is, for example).
-* Auto-generated value types. This is comfortable, but using AutoValue is the same thing and does not require anything else.
+* Auto-generated value types via `data`. This is comfortable, but using AutoValue is the same thing and does not require anything else.
 * Explicit `val`/`var` requirement. Java has `final`, but it being optional unless there are multiple threads available makes it so most people skip it. However, on a project where only I work, I don't need to worry about others misusing the available toolset.
 * Multi-platform. Yes, great and all, but I'm just building an Android app, so this is irrelevant to me.
 * Classes are final by default.
 * `internal`.
 
-While some of these points could be looked at from "this is theory/very small issues" standpoint, but bear in mind I'm comparing it to just using Java, which is simpler to build, does not have these issues, so there is no reason to "forgive" small issues when there is the alternative of not having to deal with them at all when only giving up a couple of points (the last ones) that I consider actually valuable.
+Some of these cons could be looked at from the "very small issues" standpoint, but bear in mind I'm comparing it to just using Java, which is simpler to build, does not have these issues, so there is no reason to "forgive" small issues when there is the alternative of not having to deal with them at all when only giving up a couple of points (the last ones) that I consider actually valuable.
 
 ### Why no Android arch components/Room/LiveData/etc?
 I'm lucky enough to have spent most of my time as an Android developer either in a time where these components did not exist or working on projects that could not afford treating the classpath like a rich child's wish list for Santa (libraries, embedded systems, etc). As such, I've been forced to 
 learn how to do things with very little tooling, and now that I know how, comparing this approach with how these libraries force specific ways of working (for example, the fragment injection of the whole lifecycle-awareness 'suite') and try to reinvent the wheel with dubious results (compare 
-LiveData vs RxJava, Room vs literally just writing SQLite manually) I immediately say no; there's no reason to add a bunch of dependencies to my code that require specific knowledge and limit me in how I can do things.
+LiveData vs RxJava, Room vs literally just writing SQLite manually) I immediately say no; there's no reason to add a bunch of dependencies to my code that limit me in how I can do things.
 
 ### Why gRPC?
 I think the technicalities of gRPC make it very superior to the otherwise 'normal' option, REST. Even putting aside things like HTTP2, reduced transfer size or bi-directional streaming that don't have relevant much of a relevant impact in a client demo project, just the simplicity of taking the interface definition of a service and its Protocol Buffer models
-and auto-generate all the code required it's just miles away of any other approaches available. Plus, bet you've seen many apps using REST and JSON, but how many with gRPC?
+and auto-generate all the code required it's just miles away of any other approaches available. Plus, I bet you've seen many apps using REST and JSON, but how many with gRPC?
 
 Note also that I'm fully aware that for the particular API of this project I know that there are official libraries available which would hide the 'metal' a bit. But the purpose of this project is to showcase, so why hide cool stuff away?
+
+### So are you not comfortable with Kotlin/REST/X popular library or pattern you're not using?
+Most likely I absolutely am. I am not trying to tell you what I can't do - instead, this is an opportunity for me to what my way of thinking, applied to my experience, has deemed as the closest-to-ideal setup for an Android application project, specially for a showcase one. But, as can be expected, almost all the work I've done is with the most common stack 
+and patterns, to begin with because I don't work alone. Furthermore, note some of my open-source contributions to major, common use projects with a more traditional stack.
+* [Unbound concurrency exception fix on AndroidX Media3](https://github.com/androidx/media/pull/126).
+* [New API for composite media sources on AndroidX Media3](https://github.com/androidx/media/pull/123).
+* [Removal of unnecessary reflection on Moshi](https://github.com/square/moshi/pull/629/files)
+* [Fix a bug on assisted-inject, now combined into Dagger2, with Kotlin data classes](https://github.com/cashapp/InflationInject/pull/148/)
