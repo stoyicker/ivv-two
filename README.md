@@ -4,8 +4,8 @@
 This project uses Bazel as a buildsystem, and includes [Bazelisk](https://github.com/bazelbuild/bazelisk) binaries for Windows, Linux and Darwin. See [Installing Bazel](https://ij.bazel.build/docs/bazel-plugin.html#installing-the-plugin) if you prefer to invoke Bazel directly. You will also need JDK 7 or later. Then here are a few comamnds you can run:
 
 ```bash
-bazelisk build //app:dev
-bazelisk mobile-install //app:dev 
+your_bazelisk_binary build //app:dev
+your_bazelisk_binary mobile-install //app:dev 
 ```
 
 ### Importing the project in Android Studio
